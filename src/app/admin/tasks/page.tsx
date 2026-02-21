@@ -129,6 +129,17 @@ export default function AdminTasksPage() {
     fetchTasks().finally(() => setLoading(false));
   }, [user, authLoading, router, fetchTasks]);
 
+  // Auto-fetch submissions for all tasks when tasks are loaded
+  useEffect(() => {
+    if (tasks.length > 0) {
+      tasks.forEach(task => {
+        if (!submissions[task.id] && !loadingSubmissions[task.id]) {
+          fetchSubmissions(task.id);
+        }
+      });
+    }
+  }, [tasks, submissions, loadingSubmissions, fetchSubmissions]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
