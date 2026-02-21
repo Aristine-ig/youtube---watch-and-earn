@@ -1,13 +1,13 @@
 "use client";
 
+import React, { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
 import {
   Play, LogOut, ListVideo, Users, ArrowDownToLine, Plus, Pencil, Trash2,
-  ToggleLeft, ToggleRight, X
+  ToggleLeft, ToggleRight, X, ChevronDown
 } from "lucide-react";
 
 interface Task {
@@ -22,6 +22,19 @@ interface Task {
   completed_count: number;
   is_enabled: boolean;
   created_at: string;
+}
+
+interface Submission {
+  id: string;
+  task_id: string;
+  user_id: string;
+  status: string;
+  completion_pct: number;
+  earned_amount: number;
+  screenshot_verify: string[];
+  started_at: string;
+  completed_at: string | null;
+  users: { email: string };
 }
 
 const emptyForm = {
@@ -45,12 +58,31 @@ export default function AdminTasksPage() {
   const [form, setForm] = useState(emptyForm);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string>("");
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [submissions, setSubmissions] = useState<Record<string, Submission[]>>({});
+  const [loadingSubmissions, setLoadingSubmissions] = useState<Record<string, boolean>>({});
 
   const fetchTasks = useCallback(async () => {
     const res = await fetch("/api/admin/tasks");
     if (res.ok) {
       const data = await res.json();
       setTasks(data.tasks);
+    }
+  }, []);
+
+  const fetchSubmissions = useCallback(async (taskId: string) => {
+    setLoadingSubmissions(prev => ({ ...prev, [taskId]: true }));
+    try {
+      const res = await fetch(`/api/admin/task-submissions?taskId=${taskId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSubmissions(prev => ({ ...prev, [taskId]: data.submissions }));
+      }
+    } catch (err) {
+      console.error("Failed to fetch submissions:", err);
+      toast.error("Failed to load submissions");
+    } finally {
+      setLoadingSubmissions(prev => ({ ...prev, [taskId]: false }));
     }
   }, []);
 
@@ -96,6 +128,17 @@ export default function AdminTasksPage() {
     if (!user || user.role !== "admin") { router.push("/login"); return; }
     fetchTasks().finally(() => setLoading(false));
   }, [user, authLoading, router, fetchTasks]);
+
+  // Auto-fetch submissions for all tasks when tasks are loaded
+  useEffect(() => {
+    if (tasks.length > 0) {
+      tasks.forEach(task => {
+        if (!submissions[task.id] && !loadingSubmissions[task.id]) {
+          fetchSubmissions(task.id);
+        }
+      });
+    }
+  }, [tasks, submissions, loadingSubmissions, fetchSubmissions]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -212,6 +255,17 @@ export default function AdminTasksPage() {
     });
     setThumbnailPreview(task.video_thumbnail || "");
     setShowForm(true);
+  };
+
+  const toggleSubmissionsView = async (taskId: string) => {
+    if (expandedTaskId === taskId) {
+      setExpandedTaskId(null);
+    } else {
+      setExpandedTaskId(taskId);
+      if (!submissions[taskId]) {
+        await fetchSubmissions(taskId);
+      }
+    }
   };
 
   if (authLoading || loading) {
@@ -363,8 +417,8 @@ export default function AdminTasksPage() {
         )}
 
         {/* Tasks Table */}
-        <div className="overflow-hidden rounded-xl border border-white/10">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto overflow-hidden rounded-xl border border-white/10">
+          <table className="w-full text-sm min-w-max">
             <thead className="border-b border-white/10 bg-white/5">
               <tr className="text-left text-gray-400">
                 <th className="px-4 py-3">Title</th>
@@ -374,40 +428,146 @@ export default function AdminTasksPage() {
                 <th className="px-4 py-3">Reward</th>
                 <th className="px-4 py-3">Completed/Max Users</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">User Screenshots</th>
+                <th className="px-4 py-3">View All</th>
                 <th className="px-4 py-3">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {tasks.map(task => (
-                <tr key={task.id} className="hover:bg-white/5">
-                  <td className="px-4 py-3 font-medium">{task.title || "-"}</td>
-                  <td className="px-4 py-3 font-medium">{task.channel_name || "-"}</td>
-                  <td className="px-4 py-3">{task.video_length || "-"}</td>
-                  <td className="px-4 py-3 max-w-[200px] truncate">{task.required_actions || "-"}</td>
-                  <td className="px-4 py-3 text-emerald-400 font-medium">${Number(task.reward_amount).toFixed(2)}</td>
-                  <td className="px-4 py-3">{(task.completed_count || 0)}/{task.max_users}</td>
-                  <td className="px-4 py-3">
-                    <button onClick={() => toggleTask(task)}>
-                      {task.is_enabled
-                        ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs text-emerald-400"><ToggleRight className="h-3 w-3" /> Active</span>
-                        : <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-0.5 text-xs text-red-400"><ToggleLeft className="h-3 w-3" /> Disabled</span>
-                      }
-                    </button>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => editTask(task)} className="rounded-lg p-1.5 text-gray-400 hover:bg-white/10 hover:text-white">
-                        <Pencil className="h-4 w-4" />
+                <React.Fragment key={task.id}>
+                  <tr className="hover:bg-white/5">
+                    <td className="px-4 py-3 font-medium">{task.title || "-"}</td>
+                    <td className="px-4 py-3 font-medium">{task.channel_name || "-"}</td>
+                    <td className="px-4 py-3">{task.video_length || "-"}</td>
+                    <td className="px-4 py-3 max-w-[200px] truncate">{task.required_actions || "-"}</td>
+                    <td className="px-4 py-3 text-emerald-400 font-medium">${Number(task.reward_amount).toFixed(2)}</td>
+                    <td className="px-4 py-3">{(task.completed_count || 0)}/{task.max_users}</td>
+                    <td className="px-4 py-3">
+                      <button onClick={() => toggleTask(task)}>
+                        {task.is_enabled
+                          ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs text-emerald-400"><ToggleRight className="h-3 w-3" /> Active</span>
+                          : <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-0.5 text-xs text-red-400"><ToggleLeft className="h-3 w-3" /> Disabled</span>
+                        }
                       </button>
-                      <button onClick={() => deleteTask(task.id)} className="rounded-lg p-1.5 text-gray-400 hover:bg-red-500/10 hover:text-red-400">
-                        <Trash2 className="h-4 w-4" />
+                    </td>
+                    <td className="px-4 py-3">
+                      {submissions[task.id] && submissions[task.id].length > 0 ? (
+                        <div className="flex flex-col gap-1.5 max-w-[200px]">
+                          {submissions[task.id].slice(0, 2).map((submission) => (
+                            <div key={submission.id} className="flex items-start gap-1.5 text-xs">
+                              <span className="text-gray-400 truncate">{submission.users.email}:</span>
+                              {submission.screenshot_verify && submission.screenshot_verify.length > 0 && (
+                                <div className="flex gap-1">
+                                  {submission.screenshot_verify.slice(0, 3).map((url, idx) => (
+                                    <a 
+                                      key={idx} 
+                                      href={url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer" 
+                                      className="relative group rounded overflow-hidden border border-white/10 hover:border-emerald-500/50 transition w-8 h-8 flex-shrink-0"
+                                    >
+                                      <img 
+                                        src={url} 
+                                        alt={`${submission.users.email} screenshot ${idx + 1}`} 
+                                        className="w-full h-full object-cover" 
+                                        loading="lazy" 
+                                      />
+                                    </a>
+                                  ))}
+                                  {submission.screenshot_verify.length > 3 && (
+                                    <span className="text-[10px] text-gray-500 self-center">+{submission.screenshot_verify.length - 3}</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          {submissions[task.id].length > 2 && (
+                            <span className="text-[10px] text-gray-500">+{submissions[task.id].length - 2} more</span>
+                          )}
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => { if (!submissions[task.id]) fetchSubmissions(task.id); }}
+                          className="text-xs text-gray-500 hover:text-gray-400"
+                        >
+                          Load
+                        </button>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button 
+                        onClick={() => toggleSubmissionsView(task.id)}
+                        className="inline-flex items-center gap-1 rounded-lg bg-blue-500/10 px-2.5 py-1.5 text-xs text-blue-400 hover:bg-blue-500/20 transition"
+                      >
+                        <ChevronDown className={`h-4 w-4 transition-transform ${expandedTaskId === task.id ? 'rotate-180' : ''}`} />
+                        View
                       </button>
-                    </div>
-                  </td>
-                </tr>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => editTask(task)} className="rounded-lg p-1.5 text-gray-400 hover:bg-white/10 hover:text-white">
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => deleteTask(task.id)} className="rounded-lg p-1.5 text-gray-400 hover:bg-red-500/10 hover:text-red-400">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  
+                  {expandedTaskId === task.id && (
+                    <tr>
+                      <td colSpan={10} className="px-4 py-4 bg-white/[0.02]">
+                        {loadingSubmissions[task.id] ? (
+                          <div className="flex items-center justify-center py-8">
+                            <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+                          </div>
+                        ) : submissions[task.id] && submissions[task.id].length > 0 ? (
+                          <div className="space-y-3">
+                            <h4 className="text-sm font-semibold text-gray-300">User Submissions ({submissions[task.id].length})</h4>
+                            <div className="grid gap-3">
+                              {submissions[task.id].map(submission => (
+                                <div key={submission.id} className="rounded-lg border border-white/10 bg-white/5 p-3 space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm text-gray-400">Email: <span className="text-white font-medium">{submission.users.email}</span></span>
+                                    <span className={`text-xs px-2 py-1 rounded-full ${submission.status === 'approved' ? 'bg-emerald-500/20 text-emerald-400' : submission.status === 'rejected' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                                      {submission.status}
+                                    </span>
+                                  </div>
+                                  <div className="text-sm text-gray-400">Completion: {submission.completion_pct}% | Earned: ${Number(submission.earned_amount).toFixed(2)}</div>
+                                  
+                                  {submission.screenshot_verify && submission.screenshot_verify.length > 0 && (
+                                    <div className="mt-2">
+                                      <p className="text-xs text-gray-500 mb-2">Screenshots:</p>
+                                      <div className="grid grid-cols-3 gap-2">
+                                        {submission.screenshot_verify.map((url, idx) => (
+                                          <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="relative group rounded-lg overflow-hidden border border-white/10 hover:border-emerald-500/50 transition h-20">
+                                            <img src={url} alt={`Screenshot ${idx + 1}`} className="w-full h-full object-cover" loading="lazy" />
+                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center">
+                                              <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition">Open</span>
+                                            </div>
+                                          </a>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="py-8 text-center text-gray-500">
+                            No submissions yet for this task
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))}
               {tasks.length === 0 && (
-                <tr><td colSpan={8} className="px-4 py-12 text-center text-gray-500">No tasks yet. Click &quot;Add Task&quot; to create one.</td></tr>
+                <tr><td colSpan={10} className="px-4 py-12 text-center text-gray-500">No tasks yet. Click &quot;Add Task&quot; to create one.</td></tr>
               )}
             </tbody>
           </table>
