@@ -417,7 +417,8 @@ export default function AdminTasksPage() {
                 <th className="px-4 py-3">Reward</th>
                 <th className="px-4 py-3">Completed/Max Users</th>
                 <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Screenshots</th>
+                <th className="px-4 py-3">User Screenshots</th>
+                <th className="px-4 py-3">View All</th>
                 <th className="px-4 py-3">Actions</th>
               </tr>
             </thead>
@@ -438,6 +439,50 @@ export default function AdminTasksPage() {
                           : <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-0.5 text-xs text-red-400"><ToggleLeft className="h-3 w-3" /> Disabled</span>
                         }
                       </button>
+                    </td>
+                    <td className="px-4 py-3">
+                      {submissions[task.id] && submissions[task.id].length > 0 ? (
+                        <div className="flex flex-col gap-1.5 max-w-[200px]">
+                          {submissions[task.id].slice(0, 2).map((submission) => (
+                            <div key={submission.id} className="flex items-start gap-1.5 text-xs">
+                              <span className="text-gray-400 truncate">{submission.users.email}:</span>
+                              {submission.screenshot_verify && submission.screenshot_verify.length > 0 && (
+                                <div className="flex gap-1">
+                                  {submission.screenshot_verify.slice(0, 3).map((url, idx) => (
+                                    <a 
+                                      key={idx} 
+                                      href={url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer" 
+                                      className="relative group rounded overflow-hidden border border-white/10 hover:border-emerald-500/50 transition w-8 h-8 flex-shrink-0"
+                                    >
+                                      <img 
+                                        src={url} 
+                                        alt={`${submission.users.email} screenshot ${idx + 1}`} 
+                                        className="w-full h-full object-cover" 
+                                        loading="lazy" 
+                                      />
+                                    </a>
+                                  ))}
+                                  {submission.screenshot_verify.length > 3 && (
+                                    <span className="text-[10px] text-gray-500 self-center">+{submission.screenshot_verify.length - 3}</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          {submissions[task.id].length > 2 && (
+                            <span className="text-[10px] text-gray-500">+{submissions[task.id].length - 2} more</span>
+                          )}
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => { if (!submissions[task.id]) fetchSubmissions(task.id); }}
+                          className="text-xs text-gray-500 hover:text-gray-400"
+                        >
+                          Load
+                        </button>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <button 
@@ -462,7 +507,7 @@ export default function AdminTasksPage() {
                   
                   {expandedTaskId === task.id && (
                     <tr>
-                      <td colSpan={9} className="px-4 py-4 bg-white/[0.02]">
+                      <td colSpan={10} className="px-4 py-4 bg-white/[0.02]">
                         {loadingSubmissions[task.id] ? (
                           <div className="flex items-center justify-center py-8">
                             <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
@@ -511,7 +556,7 @@ export default function AdminTasksPage() {
                 </React.Fragment>
               ))}
               {tasks.length === 0 && (
-                <tr><td colSpan={9} className="px-4 py-12 text-center text-gray-500">No tasks yet. Click &quot;Add Task&quot; to create one.</td></tr>
+                <tr><td colSpan={10} className="px-4 py-12 text-center text-gray-500">No tasks yet. Click &quot;Add Task&quot; to create one.</td></tr>
               )}
             </tbody>
           </table>
