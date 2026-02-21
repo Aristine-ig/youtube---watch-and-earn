@@ -417,8 +417,8 @@ export default function AdminTasksPage() {
         )}
 
         {/* Tasks Table */}
-        <div className="overflow-hidden rounded-xl border border-white/10">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto overflow-hidden rounded-xl border border-white/10">
+          <table className="w-full text-sm min-w-max">
             <thead className="border-b border-white/10 bg-white/5">
               <tr className="text-left text-gray-400">
                 <th className="px-4 py-3">Title</th>
