@@ -15,7 +15,7 @@ export async function GET(req: Request) {
 
     // Get all submissions for a task with user email and screenshots
     const { data: submissions, error } = await supabase
-      .from("screenshot_verify")
+      .from("task_completions")
       .select(
         `
         id,

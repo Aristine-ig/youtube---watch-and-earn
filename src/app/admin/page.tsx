@@ -43,6 +43,19 @@ interface Task {
   created_at: string;
 }
 
+interface Submission {
+  id: string;
+  task_id: string;
+  user_id: string;
+  status: string;
+  completion_pct: number;
+  earned_amount: number;
+  screenshot_verify: string[];
+  started_at: string;
+  completed_at: string | null;
+  users: { email: string };
+}
+
 const emptyForm = {
   channel_name: "",
   title: "",
@@ -66,6 +79,8 @@ export default function AdminPage() {
   const [form, setForm] = useState(emptyForm);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [submissions, setSubmissions] = useState<Record<string, Submission[]>>({});
+  const [loadingSubmissions, setLoadingSubmissions] = useState<Record<string, boolean>>({});
 
   const fetchAnalytics = useCallback(async () => {
     const res = await fetch("/api/admin/analytics");
@@ -83,11 +98,38 @@ export default function AdminPage() {
     }
   }, []);
 
+  const fetchSubmissions = useCallback(async (taskId: string) => {
+    setLoadingSubmissions(prev => ({ ...prev, [taskId]: true }));
+    try {
+      const res = await fetch(`/api/admin/task-submissions?taskId=${taskId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSubmissions(prev => ({ ...prev, [taskId]: data.submissions }));
+      }
+    } catch (err) {
+      console.error("Failed to fetch submissions:", err);
+    } finally {
+      setLoadingSubmissions(prev => ({ ...prev, [taskId]: false }));
+    }
+  }, []);
+
   useEffect(() => {
     if (authLoading) return;
     if (!user || user.role !== "admin") { router.push("/login"); return; }
     Promise.all([fetchAnalytics(), fetchTasks()]).finally(() => setLoading(false));
   }, [user, authLoading, router, fetchAnalytics, fetchTasks]);
+
+  // Auto-fetch submissions for all tasks to show screenshots
+  useEffect(() => {
+    if (tasks.length > 0) {
+      tasks.forEach(task => {
+        if (!submissions[task.id] && !loadingSubmissions[task.id]) {
+          fetchSubmissions(task.id);
+        }
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks, fetchSubmissions]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -393,6 +435,7 @@ export default function AdminPage() {
                   <th className="px-3 sm:px-4 py-3 whitespace-nowrap">Reward</th>
                   <th className="px-3 sm:px-4 py-3 whitespace-nowrap">Users</th>
                   <th className="px-3 sm:px-4 py-3 whitespace-nowrap">Status</th>
+                  <th className="px-3 sm:px-4 py-3 whitespace-nowrap">User Screenshots</th>
                   <th className="px-3 sm:px-4 py-3 whitespace-nowrap text-right">Actions</th>
                 </tr>
               </thead>
@@ -412,6 +455,47 @@ export default function AdminPage() {
                         }
                       </button>
                     </td>
+                    <td className="px-3 sm:px-4 py-3">
+                      {loadingSubmissions[task.id] ? (
+                        <span className="text-xs text-gray-500">Loading...</span>
+                      ) : submissions[task.id] && submissions[task.id].length > 0 ? (
+                        <div className="flex flex-col gap-2 min-w-[180px]">
+                          {submissions[task.id]
+                            .filter(s => s.screenshot_verify && s.screenshot_verify.length > 0)
+                            .slice(0, 3)
+                            .map((submission) => (
+                            <div key={submission.id} className="flex flex-col gap-1">
+                              <span className="text-[10px] text-gray-400 truncate max-w-[160px]">{submission.users?.email}</span>
+                              <div className="flex gap-1">
+                                {submission.screenshot_verify.slice(0, 3).map((url, idx) => (
+                                  <a
+                                    key={idx}
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block rounded overflow-hidden border border-white/10 hover:border-emerald-500/50 transition flex-shrink-0"
+                                  >
+                                    <img
+                                      src={url}
+                                      alt={`Screenshot ${idx + 1} by ${submission.users?.email}`}
+                                      className="w-10 h-10 object-cover"
+                                      loading="lazy"
+                                    />
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                          {submissions[task.id].filter(s => s.screenshot_verify && s.screenshot_verify.length > 0).length > 3 && (
+                            <span className="text-[10px] text-gray-500">
+                              +{submissions[task.id].filter(s => s.screenshot_verify && s.screenshot_verify.length > 0).length - 3} more users
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-500">No screenshots</span>
+                      )}
+                    </td>
                     <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center gap-1 justify-end">
                         <button onClick={() => editTask(task)} className="rounded-lg p-1.5 text-gray-400 hover:bg-white/10 hover:text-white">
@@ -425,7 +509,7 @@ export default function AdminPage() {
                   </tr>
                 ))}
                 {tasks.length === 0 && (
-                  <tr><td colSpan={7} className="px-3 sm:px-4 py-8 sm:py-12 text-center text-gray-500 text-xs sm:text-sm">No tasks yet. Click &quot;Add Task&quot; to create one.</td></tr>
+                  <tr><td colSpan={8} className="px-3 sm:px-4 py-8 sm:py-12 text-center text-gray-500 text-xs sm:text-sm">No tasks yet. Click &quot;Add Task&quot; to create one.</td></tr>
                 )}
               </tbody>
             </table>
