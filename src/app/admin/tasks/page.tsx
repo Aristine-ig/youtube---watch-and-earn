@@ -1,8 +1,8 @@
 "use client";
 
+import React, { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
 import {
@@ -423,7 +423,7 @@ export default function AdminTasksPage() {
             </thead>
             <tbody className="divide-y divide-white/5">
               {tasks.map(task => (
-                <tbody key={task.id}>
+                <React.Fragment key={task.id}>
                   <tr className="hover:bg-white/5">
                     <td className="px-4 py-3 font-medium">{task.title || "-"}</td>
                     <td className="px-4 py-3 font-medium">{task.channel_name || "-"}</td>
@@ -508,7 +508,7 @@ export default function AdminTasksPage() {
                       </td>
                     </tr>
                   )}
-                </tbody>
+                </React.Fragment>
               ))}
               {tasks.length === 0 && (
                 <tr><td colSpan={9} className="px-4 py-12 text-center text-gray-500">No tasks yet. Click &quot;Add Task&quot; to create one.</td></tr>
