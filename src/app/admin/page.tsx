@@ -102,17 +102,12 @@ export default function AdminPage() {
     setLoadingSubmissions(prev => ({ ...prev, [taskId]: true }));
     try {
       const res = await fetch(`/api/admin/task-submissions?taskId=${taskId}`);
-      console.log("[v0] fetchSubmissions response status:", res.status, "for taskId:", taskId);
       if (res.ok) {
         const data = await res.json();
-        console.log("[v0] fetchSubmissions data for", taskId, ":", JSON.stringify(data.submissions?.length), "submissions", JSON.stringify(data.submissions?.map((s: Submission) => ({ email: s.users?.email, screenshots: s.screenshot_verify }))));
         setSubmissions(prev => ({ ...prev, [taskId]: data.submissions }));
-      } else {
-        const errorText = await res.text();
-        console.log("[v0] fetchSubmissions error response:", errorText);
       }
     } catch (err) {
-      console.error("[v0] Failed to fetch submissions:", err);
+      console.error("Failed to fetch submissions:", err);
     } finally {
       setLoadingSubmissions(prev => ({ ...prev, [taskId]: false }));
     }

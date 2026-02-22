@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
 import {
-  Play, LogOut, LayoutDashboard, Users, ArrowDownToLine, ShieldBan, ShieldCheck
+  Play, LogOut, LayoutDashboard, Users, ArrowDownToLine, ShieldBan, ShieldCheck, Image as ImageIcon
 } from "lucide-react";
 
 interface User {
@@ -109,6 +109,7 @@ export default function AdminUsersPage() {
                   <th className="px-3 sm:px-4 py-3 whitespace-nowrap">Status</th>
                   <th className="px-3 sm:px-4 py-3 whitespace-nowrap">Suspicious Attempts</th>
                   <th className="px-3 sm:px-4 py-3 whitespace-nowrap">Joined</th>
+                  <th className="px-3 sm:px-4 py-3 whitespace-nowrap">Screenshots</th>
                   <th className="px-3 sm:px-4 py-3 whitespace-nowrap text-right">Actions</th>
                 </tr>
               </thead>
@@ -138,6 +139,15 @@ export default function AdminUsersPage() {
                       )}
                     </td>
                     <td className="px-3 sm:px-4 py-3 text-gray-400 whitespace-nowrap text-xs sm:text-sm">{new Date(u.created_at).toLocaleDateString()}</td>
+                    <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
+                      <Link
+                        href={`/admin/users/${u.id}/screenshots`}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-blue-500/10 px-2.5 py-1.5 text-xs font-medium text-blue-400 transition hover:bg-blue-500/20"
+                      >
+                        <ImageIcon className="h-3 w-3" />
+                        <span className="hidden sm:inline">View</span>
+                      </Link>
+                    </td>
                     <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
                       {u.role !== "admin" && (
                         <button
