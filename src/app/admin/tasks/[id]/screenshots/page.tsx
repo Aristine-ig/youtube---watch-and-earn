@@ -154,6 +154,7 @@ export default function TaskScreenshotsPage() {
                   <th className="px-4 py-3 whitespace-nowrap">Status</th>
                   <th className="px-4 py-3 whitespace-nowrap">Completion</th>
                   <th className="px-4 py-3 whitespace-nowrap">Earned</th>
+                  <th className="px-4 py-3 whitespace-nowrap">Task Started At</th>
                   <th className="px-4 py-3 whitespace-nowrap">Submitted</th>
                   <th className="px-4 py-3 whitespace-nowrap">Screenshots</th>
                 </tr>
@@ -183,6 +184,9 @@ export default function TaskScreenshotsPage() {
                     </td>
                     <td className="px-4 py-3 text-gray-400">
                       {new Date(submission.started_at).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 text-gray-400">
+                      {submission.completed_at ? new Date(submission.completed_at).toLocaleString() : "In Progress"}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2 flex-wrap">
