@@ -8,7 +8,7 @@ import Link from "next/link";
 import {
   Play, LogOut, LayoutDashboard, ListVideo, Users, ArrowDownToLine,
   TrendingUp, TrendingDown, AlertTriangle, DollarSign, CheckCircle, Clock,
-  Plus, Pencil, Trash2, ToggleLeft, ToggleRight, X
+  Plus, Pencil, Trash2, ToggleLeft, ToggleRight, X, Eye
 } from "lucide-react";
 
 interface Analytics {
@@ -102,17 +102,12 @@ export default function AdminPage() {
     setLoadingSubmissions(prev => ({ ...prev, [taskId]: true }));
     try {
       const res = await fetch(`/api/admin/task-submissions?taskId=${taskId}`);
-      console.log("[v0] fetchSubmissions response status:", res.status, "for taskId:", taskId);
       if (res.ok) {
         const data = await res.json();
-        console.log("[v0] fetchSubmissions data for", taskId, ":", JSON.stringify(data.submissions?.length), "submissions", JSON.stringify(data.submissions?.map((s: Submission) => ({ email: s.users?.email, screenshots: s.screenshot_verify }))));
         setSubmissions(prev => ({ ...prev, [taskId]: data.submissions }));
-      } else {
-        const errorText = await res.text();
-        console.log("[v0] fetchSubmissions error response:", errorText);
       }
     } catch (err) {
-      console.error("[v0] Failed to fetch submissions:", err);
+      console.error("Failed to fetch submissions:", err);
     } finally {
       setLoadingSubmissions(prev => ({ ...prev, [taskId]: false }));
     }
@@ -460,43 +455,17 @@ export default function AdminPage() {
                         }
                       </button>
                     </td>
-                    <td className="px-3 sm:px-4 py-3 min-w-[180px]">
+                    <td className="px-3 sm:px-4 py-3">
                       {loadingSubmissions[task.id] ? (
                         <span className="text-xs text-yellow-400">Loading...</span>
-                      ) : submissions[task.id] && submissions[task.id].length > 0 ? (
-                        <div className="flex flex-col gap-2 min-w-[180px]">
-                          {submissions[task.id]
-                            .filter(s => s.screenshot_verify && s.screenshot_verify.length > 0)
-                            .slice(0, 3)
-                            .map((submission) => (
-                            <div key={submission.id} className="flex flex-col gap-1">
-                              <span className="text-[10px] text-gray-400 truncate max-w-[160px]">{submission.users?.email}</span>
-                              <div className="flex gap-1">
-                                {submission.screenshot_verify.slice(0, 3).map((url, idx) => (
-                                  <a
-                                    key={idx}
-                                    href={url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="block rounded overflow-hidden border border-white/10 hover:border-emerald-500/50 transition flex-shrink-0"
-                                  >
-                                    <img
-                                      src={url}
-                                      alt={`Screenshot ${idx + 1} by ${submission.users?.email}`}
-                                      className="w-10 h-10 object-cover"
-                                      loading="lazy"
-                                    />
-                                  </a>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                          {submissions[task.id].filter(s => s.screenshot_verify && s.screenshot_verify.length > 0).length > 3 && (
-                            <span className="text-[10px] text-gray-500">
-                              +{submissions[task.id].filter(s => s.screenshot_verify && s.screenshot_verify.length > 0).length - 3} more users
-                            </span>
-                          )}
-                        </div>
+                      ) : submissions[task.id] && submissions[task.id].filter(s => s.screenshot_verify && s.screenshot_verify.length > 0).length > 0 ? (
+                        <Link
+                          href={`/admin/tasks/${task.id}/screenshots`}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-400 transition hover:bg-blue-500/20"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          <span>View ({submissions[task.id].filter(s => s.screenshot_verify && s.screenshot_verify.length > 0).length})</span>
+                        </Link>
                       ) : (
                         <span className="text-xs text-gray-400">No screenshots</span>
                       )}
